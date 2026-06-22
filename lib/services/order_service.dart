@@ -1,48 +1,73 @@
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OrderService {
-  static const String baseUrl =
-      "http://192.168.115.151:8000/api";
+  // Ganti dengan IP komputer/server Laravel kamu
+  final String baseUrl = "http://192.168.115.151:8000/api";
 
-  Future<bool> createOrder({
-  required String customerName,
-  required String phone,
-  required String address,
-  required String productName,
-  required int qty,
-  required double totalPrice,
-  required String paymentMethod,
+  Future<bool> createMultiItemOrder({
+    required String customerName,
+    required String phone,
+    required String address,
+    required String paymentMethod,
+    required List items,
   }) async {
+    try {
+      final url = Uri.parse("$baseUrl/orders");
 
-    SharedPreferences prefs =
-        await SharedPreferences.getInstance();
+      // Debugging: Cetak data mentah sebelum diproses
+      print("DEBUG - Items mentah: $items");
 
-    String? token =
-        prefs.getString("token");
+      // Format data agar sesuai dengan validasi Laravel
+      List<Map<String, dynamic>> formattedItems = items.map((item) {
+        // Logika pengambilan ID: coba product_id, jika null coba id, jika tidak ada kirim null
+        var pId = item["product_id"] ?? item["id"];
 
-    final response = await http.post(
-      Uri.parse("$baseUrl/orders"),
+        print("DEBUG - Memproses Item: ${item["name"]}, ID yang terbaca: $pId");
 
-      headers: {
-        "Accept": "application/json",
-        "Authorization": "Bearer $token",
-      },
+        return {
+          "product_id": pId,
+          "product_name": item["name"],
+          "qty": item["qty"],
+          "price": double.tryParse(item["price"].toString()) ?? 0,
+        };
+      }).toList();
 
-      body: {
-  "customer_name": customerName,
-  "phone": phone,
-  "address": address,
-  "product_name": productName,
-  "qty": qty.toString(),
-  "total_price": totalPrice.toString(),
-  "payment_method": paymentMethod,
-},
-    );
+      // Ambil token dari SharedPreferences untuk auth
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("token");
 
-    print(response.body);
+      final response = await http.post(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode({
+          "customer_name": customerName,
+          "phone": phone,
+          "address": address,
+          "payment_method": paymentMethod,
+          "items": formattedItems,
+        }),
+      );
 
-    return response.statusCode == 200 ||
-        response.statusCode == 201;
+      // Cek respon server
+      if (response.statusCode == 201) {
+        print("DEBUG - Order Berhasil");
+        return true;
+      } else {
+        // Tampilkan error server jika gagal (500 atau 422)
+        print(
+          "DEBUG - Server Error (${response.statusCode}): ${response.body}",
+        );
+        return false;
+      }
+    } catch (e) {
+      print("DEBUG - Exception OrderService: $e");
+      return false;
+    }
   }
 }

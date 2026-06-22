@@ -22,26 +22,42 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int currentIndex = 0;
 
+  // --- DEFINISI PALET WARNA UTAMA ---
+  final Color bgColor = const Color(0xFF0B1221);
+  final Color bottomNavColor = const Color(0xFF111827);
+  final Color accentColor = const Color(0xFF2979FF);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-
+      backgroundColor: bgColor,
       appBar: AppBar(
-        title: const Text("Marketplace Hardware"),
-        backgroundColor: Colors.deepOrange,
+        title: const Text(
+          "Marketplace Hardware",
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+            fontSize: 18,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         foregroundColor: Colors.white,
       ),
-
       body: [
         const HomeContent(),
-        CartPage(),
+        const CartPage(),
         const ProfilePage(),
       ][currentIndex],
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
-        selectedItemColor: Colors.deepOrange,
+        backgroundColor: bottomNavColor,
+        selectedItemColor: accentColor,
+        unselectedItemColor: Colors.grey[600],
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        selectedFontSize: 12,
+        unselectedFontSize: 12,
 
         onTap: (index) {
           setState(() {
@@ -50,14 +66,39 @@ class _HomePageState extends State<HomePage> {
         },
 
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-
           BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
+            icon: Padding(
+              padding: EdgeInsets.only(bottom: 4.0),
+              child: Icon(Icons.home_outlined),
+            ),
+            activeIcon: Padding(
+              padding: EdgeInsets.only(bottom: 4.0),
+              child: Icon(Icons.home),
+            ),
+            label: "Home",
+          ),
+          BottomNavigationBarItem(
+            icon: Padding(
+              padding: EdgeInsets.only(bottom: 4.0),
+              child: Icon(Icons.shopping_cart_outlined),
+            ),
+            activeIcon: Padding(
+              padding: EdgeInsets.only(bottom: 4.0),
+              child: Icon(Icons.shopping_cart),
+            ),
             label: "Keranjang",
           ),
-
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+          BottomNavigationBarItem(
+            icon: Padding(
+              padding: EdgeInsets.only(bottom: 4.0),
+              child: Icon(Icons.person_outline),
+            ),
+            activeIcon: Padding(
+              padding: EdgeInsets.only(bottom: 4.0),
+              child: Icon(Icons.person),
+            ),
+            label: "Profil",
+          ),
         ],
       ),
     );
@@ -72,8 +113,17 @@ class HomeContent extends StatefulWidget {
 }
 
 class _HomeContentState extends State<HomeContent> {
-  List<Product> products = [];
+  // Variabel untuk menyimpan master data dari API
+  List<Product> allProducts = [];
+  // Variabel untuk data yang dirender ke layar (hasil filter)
+  List<Product> displayedProducts = [];
+
   bool isLoading = true;
+
+  // Variabel state untuk filter
+  TextEditingController searchController = TextEditingController();
+  String searchQuery = "";
+  String selectedCategory = "";
 
   @override
   void initState() {
@@ -81,12 +131,19 @@ class _HomeContentState extends State<HomeContent> {
     loadProducts();
   }
 
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> loadProducts() async {
     try {
       final data = await ApiService().getProducts();
 
       setState(() {
-        products = data;
+        allProducts = data; // Simpan data asli
+        displayedProducts = data; // Tampilkan data awal
         isLoading = false;
       });
     } catch (e) {
@@ -99,19 +156,36 @@ class _HomeContentState extends State<HomeContent> {
     }
   }
 
+  // --- FUNGSI UNTUK MELAKUKAN FILTER DATA ---
+  void _applyFilters() {
+    setState(() {
+      displayedProducts = allProducts.where((product) {
+        // 1. Cek Pencarian (Search) dari inputan teks
+        final matchSearch = product.name.toLowerCase().contains(
+          searchQuery.toLowerCase(),
+        );
+
+        // 2. Cek Kategori berdasarkan NAMA PRODUK
+        final matchCategory =
+            selectedCategory.isEmpty ||
+            product.name.toLowerCase().contains(selectedCategory.toLowerCase());
+
+        // Tampilkan produk yang cocok
+        return matchSearch && matchCategory;
+      }).toList();
+    });
+  }
+
   Future<void> buyNow() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-
     String? token = prefs.getString("token");
 
     if (token == null) {
       if (!mounted) return;
-
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const LoginPage(fromCheckout: true)),
       );
-
       return;
     }
 
@@ -122,122 +196,237 @@ class _HomeContentState extends State<HomeContent> {
 
   @override
   Widget build(BuildContext context) {
+    const Color accentColor = Color(0xFF2979FF);
+    const Color searchBarColor = Color(0xFF1A2235);
+
     return SingleChildScrollView(
       child: Column(
         children: [
-          // SEARCH
+          // KARTU MEMBER DIHAPUS - Langsung masuk ke Search Bar
+          // --- SEARCH BAR FUNGSIONAL ---
           Padding(
-            padding: const EdgeInsets.all(15),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: TextField(
+              controller: searchController,
+              onChanged: (value) {
+                searchQuery = value;
+                _applyFilters(); // Panggil fungsi filter saat mengetik
+              },
+              style: const TextStyle(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(
-                hintText: "Cari Hardware...",
-                prefixIcon: const Icon(Icons.search),
+                hintText: "Search laptops, GPUs...",
+                hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Colors.grey,
+                  size: 22,
+                ),
                 filled: true,
-                fillColor: Colors.grey.shade200,
+                fillColor: searchBarColor,
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 20,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                   borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide(
+                    color: accentColor.withOpacity(0.5),
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
           ),
 
+          const SizedBox(height: 16),
+
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 15),
+            padding: EdgeInsets.symmetric(horizontal: 16),
             child: BannerSlider(),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 28),
 
+          // HEADER: Categories
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 15),
+            padding: EdgeInsets.symmetric(horizontal: 16),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                "Kategori",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                "Categories",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: 0.3,
+                ),
               ),
             ),
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
 
+          // --- LIST KATEGORI FUNGSIONAL ---
           SizedBox(
-            height: 100,
+            height: 105,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              children: const [
-                CategoryItem(icon: Icons.memory, title: "Processor"),
-                CategoryItem(icon: Icons.storage, title: "Storage"),
-                CategoryItem(icon: Icons.monitor, title: "Monitor"),
-                CategoryItem(icon: Icons.memory, title: "RAM"),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: [
+                _buildSelectableCategory(
+                  "Processor",
+                  Icons.memory,
+                  const Color(0xFF2979FF),
+                ),
+                _buildSelectableCategory(
+                  "Storage",
+                  Icons.storage,
+                  const Color(0xFF00BFA5),
+                ),
+                _buildSelectableCategory(
+                  "Monitor",
+                  Icons.monitor,
+                  const Color(0xFFFF2E93),
+                ),
+                _buildSelectableCategory(
+                  "RAM",
+                  Icons.developer_board,
+                  const Color(0xFF9D00FF),
+                ),
               ],
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 28),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 15),
+          // HEADER: Featured Products & View All (BISA DIKLIK)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                "Produk Terbaru",
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Featured Products",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      // KETIKA DIKLIK: Reset semua filter & search
+                      setState(() {
+                        selectedCategory = "";
+                        searchQuery = "";
+                        searchController.clear();
+                        _applyFilters();
+                      });
+                    },
+                    child: const Text(
+                      "View All",
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: accentColor,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
 
+          // LOADING STATE & GRID PRODUK
           if (isLoading)
             const Padding(
-              padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(),
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(color: accentColor),
             )
-          else if (products.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: Text("Produk belum tersedia"),
+          else if (displayedProducts.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(40),
+              child: Text(
+                "Produk tidak ditemukan",
+                style: TextStyle(color: Colors.grey[500]),
+              ),
             )
           else
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: displayedProducts.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.65,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                ),
+                itemBuilder: (context, index) {
+                  final product = displayedProducts[index];
 
-              itemCount: products.length,
-
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.65,
-              ),
-
-              itemBuilder: (context, index) {
-                final product = products[index];
-
-                return ProductCard(
-                  product: product,
-
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ProductDetailPage(
-                          id: product.id,
-                          name: product.name,
-                          price: product.price.toString(),
-                          description: product.description,
-                          image: product.image,
+                  return ProductCard(
+                    product: product,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProductDetailPage(
+                            id: product.id,
+                            name: product.name,
+                            price: product.price.toString(),
+                            description: product.description,
+                            image: product.image,
+                          ),
                         ),
-                      ),
-                    );
-                  },
-
-                  onBuy: buyNow,
-                );
-              },
+                      );
+                    },
+                    onBuy: buyNow,
+                  );
+                },
+              ),
             ),
+
+          const SizedBox(height: 30),
         ],
+      ),
+    );
+  }
+
+  // --- WIDGET HELPER UNTUK KATEGORI YANG BISA DIKLIK ---
+  Widget _buildSelectableCategory(
+    String title,
+    IconData icon,
+    Color neonColor,
+  ) {
+    bool isSelected = selectedCategory == title;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedCategory = isSelected ? "" : title;
+          _applyFilters();
+        });
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: isSelected
+              ? Border.all(color: neonColor, width: 1.5)
+              : Border.all(color: Colors.transparent, width: 1.5),
+        ),
+        child: CategoryItem(icon: icon, title: title, iconColor: neonColor),
       ),
     );
   }
@@ -248,6 +437,8 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text("Profile"));
+    return const Center(
+      child: Text("Profile", style: TextStyle(color: Colors.white)),
+    );
   }
 }
