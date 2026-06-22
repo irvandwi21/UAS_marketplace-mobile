@@ -114,7 +114,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
               height: 300,
               width: double.infinity,
               child: Image.network(
-                "http://192.168.202.151:8000/storage/${widget.image}",
+                 "http://192.168.115.151:8000/products/${widget.image}",
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(

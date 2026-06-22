@@ -21,7 +21,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   String message = "";
 
-  String baseUrl = "http://192.168.202.151:8000/api";
+  String baseUrl = "http://192.168.115.151:8000/api";
 
   Future<void> register() async {
     print("===== REGISTER DIKLIK =====");

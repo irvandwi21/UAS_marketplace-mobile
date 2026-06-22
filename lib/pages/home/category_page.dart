@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 class CategoryPage extends StatelessWidget {
   final String categoryName;
 
-  const CategoryPage({
-    super.key,
-    required this.categoryName,
-  });
+  const CategoryPage({super.key, required this.categoryName});
 
   @override
   Widget build(BuildContext context) {
@@ -22,10 +19,7 @@ class CategoryPage extends StatelessWidget {
         children: [
           Text(
             "Produk Kategori $categoryName",
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 20),

@@ -10,13 +10,36 @@ class CheckoutPage extends StatefulWidget {
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
+  final TextEditingController namaController = TextEditingController();
+
+  final TextEditingController alamatController = TextEditingController();
+
+  final TextEditingController hpController = TextEditingController();
+
+  String paymentMethod = "COD";
+
   Future<void> buatPesanan() async {
+    if (namaController.text.isEmpty ||
+        hpController.text.isEmpty ||
+        alamatController.text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Lengkapi data penerima")));
+      return;
+    }
+
     bool sukses = true;
 
     for (var item in CartData.items) {
       bool result = await OrderService().createOrder(
-        productId: item["id"],
-        quantity: item["qty"],
+        customerName: namaController.text,
+        phone: hpController.text,
+        address: alamatController.text,
+        productName: item["name"],
+        qty: item["qty"],
+        totalPrice:
+            (double.tryParse(item["price"].toString()) ?? 0) * item["qty"],
+        paymentMethod: paymentMethod,
       );
 
       if (!result) {
@@ -41,12 +64,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
-  final TextEditingController namaController = TextEditingController();
-
-  final TextEditingController alamatController = TextEditingController();
-
-  final TextEditingController hpController = TextEditingController();
-
   double getTotal() {
     double total = 0;
 
@@ -66,13 +83,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
         backgroundColor: Colors.deepOrange,
         foregroundColor: Colors.white,
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(15),
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-
           children: [
             const Text(
               "Data Penerima",
@@ -93,6 +107,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
             TextField(
               controller: hpController,
+              keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
                 labelText: "Nomor HP",
                 border: OutlineInputBorder(),
@@ -108,6 +123,31 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 labelText: "Alamat Lengkap",
                 border: OutlineInputBorder(),
               ),
+            ),
+
+            const SizedBox(height: 10),
+
+            DropdownButtonFormField<String>(
+              value: paymentMethod,
+              decoration: const InputDecoration(
+                labelText: "Metode Pembayaran",
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: "COD", child: Text("COD")),
+                DropdownMenuItem(
+                  value: "Transfer Bank",
+                  child: Text("Transfer Bank"),
+                ),
+                DropdownMenuItem(value: "DANA", child: Text("DANA")),
+                DropdownMenuItem(value: "OVO", child: Text("OVO")),
+                DropdownMenuItem(value: "GoPay", child: Text("GoPay")),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  paymentMethod = value!;
+                });
+              },
             ),
 
             const SizedBox(height: 25),
@@ -131,13 +171,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-
               children: [
                 const Text(
                   "Total",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-
                 Text(
                   "Rp ${getTotal().toStringAsFixed(0)}",
                   style: const TextStyle(
@@ -153,17 +191,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
             SizedBox(
               width: double.infinity,
-
               child: ElevatedButton(
                 onPressed: buatPesanan,
-
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepOrange,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-
                 child: const Text(
                   "Buat Pesanan",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.white, fontSize: 16),
                 ),
               ),
             ),

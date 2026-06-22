@@ -23,7 +23,7 @@ class _LoginPageState extends State<LoginPage> {
 
   String message = "";
 
-  String baseUrl = "http://192.168.202.151:8000/api";
+  String baseUrl = "http://192.168.115.151:8000/api";
 
   Future<void> login() async {
     try {

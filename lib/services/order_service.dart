@@ -3,11 +3,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class OrderService {
   static const String baseUrl =
-      "http://192.168.202.151:8000/api";
+      "http://192.168.115.151:8000/api";
 
   Future<bool> createOrder({
-    required int productId,
-    required int quantity,
+  required String customerName,
+  required String phone,
+  required String address,
+  required String productName,
+  required int qty,
+  required double totalPrice,
+  required String paymentMethod,
   }) async {
 
     SharedPreferences prefs =
@@ -25,9 +30,14 @@ class OrderService {
       },
 
       body: {
-        "product_id": productId.toString(),
-        "quantity": quantity.toString(),
-      },
+  "customer_name": customerName,
+  "phone": phone,
+  "address": address,
+  "product_name": productName,
+  "qty": qty.toString(),
+  "total_price": totalPrice.toString(),
+  "payment_method": paymentMethod,
+},
     );
 
     print(response.body);

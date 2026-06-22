@@ -21,24 +21,18 @@ class ProductCard extends StatelessWidget {
       child: Card(
         elevation: 3,
 
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
 
         child: Column(
           children: [
             Expanded(
               child: Image.network(
-               "http://192.168.202.151:8000/storage/${product.image}",
+                "http://192.168.115.151:8000/products/${product.image}",
                 width: double.infinity,
                 fit: BoxFit.cover,
 
-                errorBuilder:
-                    (context, error, stackTrace) {
-                  return const Icon(
-                    Icons.image_not_supported,
-                    size: 60,
-                  );
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(Icons.image_not_supported, size: 60);
                 },
               ),
             ),
@@ -48,9 +42,7 @@ class ProductCard extends StatelessWidget {
               child: Text(
                 product.name,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
 
@@ -64,10 +56,7 @@ class ProductCard extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            ElevatedButton(
-              onPressed: onBuy,
-              child: const Text("Beli"),
-            ),
+            ElevatedButton(onPressed: onBuy, child: const Text("Beli")),
 
             const SizedBox(height: 10),
           ],

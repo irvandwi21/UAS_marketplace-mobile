@@ -80,7 +80,7 @@ class _CartPageState extends State<CartPage> {
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
                                 child: Image.network(
-                                  "http://192.168.202.151:8000/storage/${item["image"]}",
+                                  "http://192.168.115.151:8000/products/${item["image"]}",
                                   width: 85,
                                   height: 85,
                                   fit: BoxFit.cover,
@@ -247,14 +247,18 @@ class _CartPageState extends State<CartPage> {
                           width: double.infinity,
                           child: ElevatedButton(
                             /// Nanti ke CheckoutPage
-                            onPressed: () {
-                              Navigator.push(
+                            onPressed: () async {
+                              final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => const CheckoutPage(),
                                 ),
                               );
+                              if (result == true) {
+                                setState(() {});
+                              }
                             },
+
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.deepOrange,
                               foregroundColor: Colors.white,

@@ -35,7 +35,7 @@ class _HomePageState extends State<HomePage> {
 
       body: [
         const HomeContent(),
-        const CartPage(),
+        CartPage(),
         const ProfilePage(),
       ][currentIndex],
 
@@ -228,7 +228,7 @@ class _HomeContentState extends State<HomeContent> {
                           price: product.price.toString(),
                           description: product.description,
                           image: product.image,
-                        )
+                        ),
                       ),
                     );
                   },

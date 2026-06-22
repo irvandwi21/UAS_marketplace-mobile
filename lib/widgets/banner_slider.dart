@@ -11,7 +11,7 @@ class BannerSlider extends StatelessWidget {
       "assets/images/banner2.jpg",
       "assets/images/banner3.jpg",
       "assets/images/banner4.jpg",
-      "assets/images/banner5.jpg",
+      "assets/images/banner5.png",
     ];
 
     return CarouselSlider(
@@ -25,11 +25,7 @@ class BannerSlider extends StatelessWidget {
         return ClipRRect(
           borderRadius: BorderRadius.circular(15),
 
-          child: Image.asset(
-            image,
-            fit: BoxFit.cover,
-            width: double.infinity,
-          ),
+          child: Image.asset(image, fit: BoxFit.cover, width: double.infinity),
         );
       }).toList(),
     );
