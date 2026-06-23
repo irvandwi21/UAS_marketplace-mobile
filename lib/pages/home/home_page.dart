@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/product_model.dart';
@@ -11,6 +13,7 @@ import '../../widgets/category_item.dart';
 import '../auth/login_page.dart';
 import '../cart/cart_page.dart';
 import '../product/product_detail_page.dart';
+import '../profil/data_diri_page.dart'; // <--- IMPORT HALAMAN DATA DIRI
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -105,6 +108,9 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+// ==========================================
+// KONTEN HALAMAN HOME (PRODUK & FILTER)
+// ==========================================
 class HomeContent extends StatefulWidget {
   const HomeContent({super.key});
 
@@ -113,14 +119,10 @@ class HomeContent extends StatefulWidget {
 }
 
 class _HomeContentState extends State<HomeContent> {
-  // Variabel untuk menyimpan master data dari API
   List<Product> allProducts = [];
-  // Variabel untuk data yang dirender ke layar (hasil filter)
   List<Product> displayedProducts = [];
-
   bool isLoading = true;
 
-  // Variabel state untuk filter
   TextEditingController searchController = TextEditingController();
   String searchQuery = "";
   String selectedCategory = "";
@@ -140,37 +142,28 @@ class _HomeContentState extends State<HomeContent> {
   Future<void> loadProducts() async {
     try {
       final data = await ApiService().getProducts();
-
       setState(() {
-        allProducts = data; // Simpan data asli
-        displayedProducts = data; // Tampilkan data awal
+        allProducts = data;
+        displayedProducts = data;
         isLoading = false;
       });
     } catch (e) {
-      print("ERROR LOAD PRODUCT:");
-      print(e);
-
+      print("ERROR LOAD PRODUCT: $e");
       setState(() {
         isLoading = false;
       });
     }
   }
 
-  // --- FUNGSI UNTUK MELAKUKAN FILTER DATA ---
   void _applyFilters() {
     setState(() {
       displayedProducts = allProducts.where((product) {
-        // 1. Cek Pencarian (Search) dari inputan teks
         final matchSearch = product.name.toLowerCase().contains(
           searchQuery.toLowerCase(),
         );
-
-        // 2. Cek Kategori berdasarkan NAMA PRODUK
         final matchCategory =
             selectedCategory.isEmpty ||
             product.name.toLowerCase().contains(selectedCategory.toLowerCase());
-
-        // Tampilkan produk yang cocok
         return matchSearch && matchCategory;
       }).toList();
     });
@@ -202,15 +195,14 @@ class _HomeContentState extends State<HomeContent> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // KARTU MEMBER DIHAPUS - Langsung masuk ke Search Bar
-          // --- SEARCH BAR FUNGSIONAL ---
+          // SEARCH BAR
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: TextField(
               controller: searchController,
               onChanged: (value) {
                 searchQuery = value;
-                _applyFilters(); // Panggil fungsi filter saat mengetik
+                _applyFilters();
               },
               style: const TextStyle(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(
@@ -243,15 +235,13 @@ class _HomeContentState extends State<HomeContent> {
           ),
 
           const SizedBox(height: 16),
-
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: BannerSlider(),
           ),
-
           const SizedBox(height: 28),
 
-          // HEADER: Categories
+          // HEADER KATEGORI
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: Align(
@@ -267,10 +257,9 @@ class _HomeContentState extends State<HomeContent> {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
 
-          // --- LIST KATEGORI FUNGSIONAL ---
+          // LIST KATEGORI
           SizedBox(
             height: 105,
             child: ListView(
@@ -300,10 +289,9 @@ class _HomeContentState extends State<HomeContent> {
               ],
             ),
           ),
-
           const SizedBox(height: 28),
 
-          // HEADER: Featured Products & View All (BISA DIKLIK)
+          // HEADER PRODUK & VIEW ALL
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Align(
@@ -322,7 +310,6 @@ class _HomeContentState extends State<HomeContent> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // KETIKA DIKLIK: Reset semua filter & search
                       setState(() {
                         selectedCategory = "";
                         searchQuery = "";
@@ -343,10 +330,9 @@ class _HomeContentState extends State<HomeContent> {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
 
-          // LOADING STATE & GRID PRODUK
+          // GRID PRODUK
           if (isLoading)
             const Padding(
               padding: EdgeInsets.all(40),
@@ -375,7 +361,6 @@ class _HomeContentState extends State<HomeContent> {
                 ),
                 itemBuilder: (context, index) {
                   final product = displayedProducts[index];
-
                   return ProductCard(
                     product: product,
                     onTap: () {
@@ -397,21 +382,18 @@ class _HomeContentState extends State<HomeContent> {
                 },
               ),
             ),
-
           const SizedBox(height: 30),
         ],
       ),
     );
   }
 
-  // --- WIDGET HELPER UNTUK KATEGORI YANG BISA DIKLIK ---
   Widget _buildSelectableCategory(
     String title,
     IconData icon,
     Color neonColor,
   ) {
     bool isSelected = selectedCategory == title;
-
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -432,13 +414,367 @@ class _HomeContentState extends State<HomeContent> {
   }
 }
 
-class ProfilePage extends StatelessWidget {
+// ==========================================
+// KONTEN HALAMAN PROFIL (INFO AKUN & API)
+// ==========================================
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
   @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  String userName = "Loading...";
+  String userEmail = "Loading...";
+  String userPhone = "-";
+  String userAddress = "-";
+  bool isLoading = true;
+
+  // Base URL (Pastikan IP Address ini sudah benar)
+  final String baseUrl = "http://192.168.115.151:8000/api";
+
+  @override
+  void initState() {
+    super.initState();
+    getUserProfile();
+  }
+
+  Future<void> getUserProfile() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString("token");
+
+    if (token != null) {
+      try {
+        var response = await http.get(
+          Uri.parse("$baseUrl/profile"),
+          headers: {
+            "Accept": "application/json",
+            "Authorization": "Bearer $token",
+          },
+        );
+
+        if (response.statusCode == 200) {
+          var data = jsonDecode(response.body);
+          if (mounted) {
+            setState(() {
+              userName = data['name'] ?? "User";
+              userEmail = data['email'] ?? "Email tidak tersedia";
+              userPhone = data['phone'] ?? "Belum mengatur No. HP";
+              userAddress = data['address'] ?? "Belum mengatur alamat";
+              isLoading = false;
+            });
+          }
+        } else {
+          if (mounted) setState(() => isLoading = false);
+        }
+      } catch (e) {
+        print("Error fetch profile: $e");
+        if (mounted) setState(() => isLoading = false);
+      }
+    } else {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> logout() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString("token");
+
+    if (token != null) {
+      try {
+        await http.post(
+          Uri.parse("$baseUrl/logout"),
+          headers: {
+            "Accept": "application/json",
+            "Authorization": "Bearer $token",
+          },
+        );
+      } catch (e) {
+        print("Gagal hit logout server: $e");
+      }
+    }
+
+    await prefs.remove("token");
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text("Profile", style: TextStyle(color: Colors.white)),
+    const Color bgColor = Color(0xFF0B1221);
+    const Color cardColor = Color(0xFF1A2235);
+    const Color redAccent = Color(0xFFFF5252);
+    const Color blueAccent = Color(0xFF2979FF);
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator(color: blueAccent))
+            : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 20,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // KARTU INFORMASI PENGGUNA
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 30),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.05),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 65,
+                            height: 65,
+                            decoration: BoxDecoration(
+                              color: blueAccent.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.person,
+                              color: blueAccent,
+                              size: 32,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  userName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.email_outlined,
+                                      color: Colors.grey[400],
+                                      size: 14,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        userEmail,
+                                        style: TextStyle(
+                                          color: Colors.grey[400],
+                                          fontSize: 13,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.location_on,
+                                      color: Colors.grey[400],
+                                      size: 14,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        userAddress,
+                                        style: TextStyle(
+                                          color: Colors.grey[400],
+                                          fontSize: 13,
+                                          height: 1.2,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // TOMBOL EDIT MEMBUKA HALAMAN DATA DIRI
+                          IconButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => DataDiriPage(
+                                    currentName: userName,
+                                    currentEmail: userEmail,
+                                    currentPhone: userPhone,
+                                    currentAddress: userAddress,
+                                  ),
+                                ),
+                              ).then((isUpdated) {
+                                if (isUpdated == true) {
+                                  setState(() {
+                                    isLoading = true;
+                                  });
+                                  getUserProfile();
+                                }
+                              });
+                            },
+                            icon: Icon(
+                              Icons.edit_square,
+                              color: blueAccent.withOpacity(0.8),
+                              size: 22,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Text(
+                      "Pengaturan Akun",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // KOTAK MENU PENGATURAN
+                    Container(
+                      decoration: BoxDecoration(
+                        color: cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildMenuItem(
+                            icon: Icons.person_outline,
+                            title: "Data Diri",
+                            onTap: () {
+                              // NAVIGASI KE DATA DIRI PAGE
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => DataDiriPage(
+                                    currentName: userName,
+                                    currentEmail: userEmail,
+                                    currentPhone: userPhone,
+                                    currentAddress: userAddress,
+                                  ),
+                                ),
+                              ).then((isUpdated) {
+                                if (isUpdated == true) {
+                                  setState(() {
+                                    isLoading = true;
+                                  });
+                                  getUserProfile();
+                                }
+                              });
+                            },
+                          ),
+                          Divider(
+                            color: Colors.white.withOpacity(0.05),
+                            height: 1,
+                            thickness: 1,
+                          ),
+                          _buildMenuItem(
+                            icon: Icons.location_on_outlined,
+                            title: "Daftar Alamat",
+                            onTap: () {},
+                          ),
+                          Divider(
+                            color: Colors.white.withOpacity(0.05),
+                            height: 1,
+                            thickness: 1,
+                          ),
+                          _buildMenuItem(
+                            icon: Icons.credit_card_outlined,
+                            title: "Metode Pembayaran",
+                            onTap: () {},
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+
+                    // TOMBOL LOGOUT
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: logout,
+                        icon: const Icon(
+                          Icons.logout_rounded,
+                          color: redAccent,
+                          size: 20,
+                        ),
+                        label: const Text(
+                          "KELUAR DARI AKUN",
+                          style: TextStyle(
+                            color: redAccent,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: const BorderSide(color: redAccent, width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      leading: Icon(icon, color: Colors.grey[400], size: 24),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      trailing: Icon(
+        Icons.arrow_forward_ios_rounded,
+        color: Colors.grey[600],
+        size: 16,
+      ),
+      onTap: onTap,
     );
   }
 }
